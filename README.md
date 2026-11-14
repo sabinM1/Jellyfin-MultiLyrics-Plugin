@@ -55,12 +55,12 @@ Both carry every released version, so the catalog shows a release history. The m
 generated, never hand-edited:
 
 ```bash
-python scripts/gen_manifest.py --version 1.1.0.0 \
-  --base-url https://github.com/sabinM1/Jellyfin-MultiLyrics-Plugin/releases/download/v1.1.0.0 \
+python scripts/gen_manifest.py --version <version> \
+  --base-url https://github.com/sabinM1/Jellyfin-MultiLyrics-Plugin/releases/download/v<version> \
   --merge-existing manifest.json \
   --output manifest.json \
-  artifacts/multi-lyrics_1.1.0.0_jf10.zip=10.11.0.0 \
-  artifacts/multi-lyrics_1.1.0.0_jf12.zip=12.0.0.0
+  artifacts/multi-lyrics_<version>_jf10.zip=10.11.0.0 \
+  artifacts/multi-lyrics_<version>_jf12.zip=12.0.0.0
 python scripts/validate_project.py    # strict: fails on placeholder URLs/checksums
 ```
 
@@ -76,9 +76,10 @@ the release, and commits it back to `master`. Jellyfin installs the highest vers
 ## Configuration reference
 
 Every setting has a working default, so a fresh install fetches lyrics without any
-configuration. The single exception is Genius: its token has no default and the source stays
-**off** until you supply one and tick the acknowledgement. The settings page has a
-**Restore defaults** button that resets the priority table.
+configuration. The single exception is Genius: the source stays **off** until you enable it and
+tick the Terms-of-Service acknowledgement, and its client access token is optional. The settings
+page has a **Restore defaults** button that resets the whole page (priority, per-source enables
+and *Prefer synced lyrics*) and stores the result immediately.
 
 ### Shown in the settings page
 
@@ -89,14 +90,12 @@ configuration. The single exception is Genius: its token has no default and the 
 | Per-source enable | lyrics.ovh/Tekstowo on; Genius off | Unticked sources are skipped entirely. **LRCLIB is always enabled**: its checkbox is locked, so a synced source is always in the queue |
 | Genius ToS acknowledgement | off | Genius stays unusable until *“I understand this may violate Genius Terms of Service; personal use only”* is ticked. Enabling Genius means scraping the song page; there is no metadata-only mode |
 | Genius token | empty | **Optional** client access token. With one, Genius' official search API is used; without one the public genius.com search is queried. **Stored in plain XML** — Jellyfin's plugin API has no secret store; file permissions on `<jellyfin-data>/config/Multi-Lyrics.xml` are your protection. Never logged and never echoed back into the settings page (the field shows `stored - leave blank to keep`). |
-| Genius mode | Off | `Off` / `Search only` (metadata + song URL only; the official API never returns lyric text) / `Scrape song page text` |
 
 ### Fixed recommended values (not shown in the settings page)
 
 These keep Jellyfin's recommended behaviour and are no longer configurable from the UI. They
-still exist in the configuration file, so an install that previously changed one keeps its
-stored value; `WritePolicy`, `OverwritePolicy` and `MaxTracksPerRun` are now unused (there is no
-file output and no scheduled task).
+still live in the configuration file, so an install that previously changed one keeps its stored
+value.
 
 | Setting | Value | Meaning |
 | --- | --- | --- |
@@ -327,7 +326,7 @@ cd tests/integration && ./seed_music.sh && ./install_plugin.sh \
 | Job | What it does |
 | --- | --- |
 | `plugin` (matrix `jf10`, `jf12`) | restore → build → publish for both Jellyfin lines (net9.0 / net10.0), validates metadata and packaging inputs, packs the zip, uploads it as a build artifact |
-| `test` | `dotnet test` on net9.0 (100 tests) with TRX results uploaded |
+| `test` | `dotnet test` on net9.0 (137 tests) with TRX results uploaded |
 | `alignment-service` | byte-compiles `app.py`, runs the LRC logic tests, validates both compose files |
 | `metadata` | `scripts/validate_project.py`: build.yaml/Constants/csproj/manifest consistency, default-off legal gates, secret and `TODO(verify)` scans |
 
@@ -350,7 +349,7 @@ Jellyfin.Plugin.MultiLyrics/
   Storage/                      # ResultCache (JSON, metadata only) + EphemeralLyricsStore
   Alignment/                    # AlignmentClient + SsrfGuard
   Api/                          # MultiLyricsController + DTOs
-Jellyfin.Plugin.MultiLyrics.Tests/   # 100 unit tests
+Jellyfin.Plugin.MultiLyrics.Tests/   # 137 unit tests
 alignment-service/              # FastAPI + Dockerfile + docker-compose.yml + test_lrc.py
 tests/integration/              # docker-compose.yml + seed_music.sh + install_plugin.sh + run_test.sh
 scripts/                        # validate_project.py, pack_plugin.py, gen_manifest.py

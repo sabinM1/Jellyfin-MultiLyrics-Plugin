@@ -314,5 +314,7 @@ only fetches them, ships no lyric text, and grants no licence to redistribute an
 ## Verification
 
 `dotnet build` for net9.0 and net10.0 plus the unit-test suite (137 tests) run in CI on every
-push. End-to-end runs against a live Jellyfin container are covered by
-`tests/integration/`; see `VERIFICATION.md` for the current status of each checklist item.
+push, together with `scripts/validate_project.py` and the alignment-service logic tests; the
+result of the latest run is in the repository's Actions tab. End-to-end runs against a live
+Jellyfin container are covered by `tests/integration/`, whose compose files are validated in CI
+too.
