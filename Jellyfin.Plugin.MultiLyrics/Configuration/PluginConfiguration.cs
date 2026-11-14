@@ -4,10 +4,11 @@ using MediaBrowser.Model.Plugins;
 namespace Jellyfin.Plugin.MultiLyrics.Configuration;
 
 /// <summary>
-/// Genius operating mode. The official Genius API never returns lyric text, so "SearchOnly" can
+/// Genius operating mode. The official Genius API never returns lyric text, so "SearchOnly" could
 /// only surface song URLs; text requires scraping. The settings page no longer offers a choice:
-/// enabling Genius means scraping, and the stored value is kept only so a configuration written by
-/// an older build still loads.
+/// enabling Genius means scraping. Whether Genius is queried is decided by <c>EnableGenius</c> and
+/// the Terms-of-Service acknowledgement, never by this value, which survives only so a
+/// configuration written by an older build still loads.
 /// </summary>
 /// <remarks>
 /// The host deserializes the posted settings page with its own enum handling, so the mapping is
@@ -19,42 +20,13 @@ public enum GeniusMode
     /// <summary>Do not use Genius at all (default).</summary>
     Off = 0,
 
-    /// <summary>Retired: metadata-only mode. Treated as <see cref="Scrape"/>; kept for stored configurations.</summary>
+    /// <summary>Retired metadata-only mode. Never produced and ignored; kept so an older configuration still loads.</summary>
     SearchOnly = 1,
 
     /// <summary>Scrape the song page HTML. May violate Genius Terms of Service. Personal use only.</summary>
     Scrape = 2
 }
 
-/// <summary>
-/// Where sidecar files are written.
-/// </summary>
-public enum WritePolicy
-{
-    /// <summary>Next to the audio file (served by Jellyfin automatically after a library scan).</summary>
-    BesideMedia = 0,
-
-    /// <summary>In the item's internal metadata folder (mirrors Jellyfin's own "save lyrics" behavior).</summary>
-    MetadataFolder = 1,
-
-    /// <summary>Both locations.</summary>
-    Both = 2
-}
-
-/// <summary>
-/// When an existing sidecar may be replaced.
-/// </summary>
-public enum OverwritePolicy
-{
-    /// <summary>Never overwrite an existing sidecar.</summary>
-    Never = 0,
-
-    /// <summary>Overwrite only to upgrade plain (.txt) to synced (.lrc). Never downgrades.</summary>
-    UpgradeSynced = 1,
-
-    /// <summary>Always overwrite with the newest result.</summary>
-    Always = 2
-}
 
 /// <summary>
 /// Plugin configuration. Persisted by the host as plain XML in the plugin configuration
@@ -120,11 +92,6 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public bool AllowPrivateAlignmentHost { get; set; } = false;
 
-    /// <summary>Gets or sets the sidecar write policy (BesideMedia / MetadataFolder / Both).</summary>
-    public WritePolicy WritePolicy { get; set; } = WritePolicy.BesideMedia;
-
-    /// <summary>Gets or sets the overwrite rule for existing sidecars.</summary>
-    public OverwritePolicy OverwritePolicy { get; set; } = OverwritePolicy.UpgradeSynced;
 
     /// <summary>Gets or sets the duration tolerance in seconds used to accept a remote match.</summary>
     public int DurationToleranceSeconds { get; set; } = 10;
@@ -135,8 +102,6 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public bool StrictSearch { get; set; } = false;
 
-    /// <summary>Gets or sets the maximum number of tracks processed by one task run.</summary>
-    public int MaxTracksPerRun { get; set; } = 200;
 
     /// <summary>Gets or sets the retry escalation in days as a comma-separated list, e.g. "1,3,7,30".</summary>
     public string RetryAfterDays { get; set; } = Constants.DefaultRetryScheduleDays;

@@ -292,7 +292,7 @@ public sealed class LyricsSearchService : ILyricsQueue
             "v" + version,
             cfg.SourceOrder,
             $"lrc={cfg.EnableLrcLib},ovh={cfg.EnableLyricsOvh},tekstowo={cfg.EnableTekstowo},genius={cfg.EnableGenius}",
-            $"geniusMode={(int)cfg.GeniusMode}",
+            $"geniusMode={(cfg.EnableGenius && cfg.GeniusToSAcknowledged ? (int)GeniusMode.Scrape : (int)GeniusMode.Off)}",
             string.IsNullOrWhiteSpace(cfg.GeniusToken) ? "no-token" : "token",
             $"preferSynced={cfg.PreferSyncedLyrics}");
     }
