@@ -1,6 +1,19 @@
 **Multi-Lyrics** — fetch lyrics for your Jellyfin library from several sources, in a priority
 order you control, and serve them to the player from memory.
 
+## Changes in 1.0.0.1
+
+- **Removed the unused sidecar write settings.** `WritePolicy`, `OverwritePolicy` and
+  `MaxTracksPerRun` had no readers since file output was dropped. A configuration written by an
+  older build still loads: unknown XML elements are ignored and are dropped the next time the
+  settings page is saved.
+- **The stored Genius mode now matches what runs.** It follows the Genius toggle, so a retired
+  `SearchOnly` value left behind by an older build can no longer change the settings stamp and
+  clear the retry cache while changing nothing else.
+- **Docs.** The Genius settings reference no longer advertises a mode selector or a required
+  token, *Restore defaults* is described as it behaves (whole page, saved immediately), and the
+  pre-release `VERIFICATION.md` log was replaced by the CI workflow.
+
 ## Changes in 1.0.0.0
 
 First public release. The 0.x headings below are the pre-release history that led here.
@@ -250,8 +263,8 @@ This release is about one question: *why did the plugin not find lyrics for this
 
 | File | Jellyfin | Framework |
 | --- | --- | --- |
-| `multi-lyrics_1.0.0.0_jf10.zip` | 10.11.x | net9.0 |
-| `multi-lyrics_1.0.0.0_jf12.zip` | 12.x | net10.0 |
+| `multi-lyrics_1.0.0.1_jf10.zip` | 10.11.x | net9.0 |
+| `multi-lyrics_1.0.0.1_jf12.zip` | 12.x | net10.0 |
 
 `manifest.json` (attached below) is the plugin-catalog manifest for this release.
 
@@ -265,7 +278,7 @@ This release is about one question: *why did the plugin not find lyrics for this
 
 **Manual**
 
-1. Create `config/plugins/MultiLyrics_1.0.0.0/`
+1. Create `config/plugins/MultiLyrics_1.0.0.1/`
 2. Extract the zip for your Jellyfin line into that folder (files flat, no subfolder)
 3. Restart Jellyfin and confirm the plugin under Dashboard → Plugins.
 

@@ -1,7 +1,7 @@
 ---
 name: "Multi-Lyrics"
 guid: "7c1e4a9e-52b8-4c2f-9a3d-6e8f1b2c4d5e"
-version: "1.0.0.0"
+version: "1.0.0.1"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
 owner: "Multi-Lyrics contributors"
@@ -21,6 +21,14 @@ artifacts:
   # Every other assembly in the publish output is provided by the Jellyfin server.
   - "HtmlAgilityPack.dll"
 changelog: |-
+  ## v1.0.0.1
+  - **Unused sidecar settings removed.** `WritePolicy`, `OverwritePolicy` and `MaxTracksPerRun`
+    had no readers left. A configuration written by an older build still loads: unknown elements
+    are ignored and disappear the next time the settings page is saved.
+  - **The Genius mode in the file now matches what runs.** It follows the Genius toggle, so a
+    retired `SearchOnly` left behind by an older build can no longer invalidate the retry cache.
+  - **Docs corrected.** The Genius reference no longer claims a mode selector or a required token,
+    *Restore defaults* is described as it behaves, and the pre-release verification log is gone.
   ## v1.0.0.0
   ### First public release
   - **Multi-source lyrics in a priority order.** LRCLIB (synced, always enabled), lyrics.ovh,
