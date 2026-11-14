@@ -44,8 +44,6 @@ public interface IResultCache
     /// <param name="entry">Entry to update.</param>
     /// <param name="result">Winning result.</param>
     /// <param name="aligned">True when the text was aligned by the companion service.</param>
-    /// <param name="sidecarPath">Written sidecar path, if any.</param>
-    /// <param name="sidecarKind">Kind stored in the sidecar.</param>
     void RecordWin(CacheEntry entry, LyricResult result, bool aligned);
 
     /// <summary>

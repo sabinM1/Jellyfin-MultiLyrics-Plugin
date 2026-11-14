@@ -30,7 +30,7 @@ public class MultiLyricsPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override string Name => Constants.PluginName;
 
     /// <inheritdoc />
-    public override string Description => "Fetches lyrics from multiple sources in a configurable priority order, records sync status, writes sidecar files and supports manual per-track source selection.";
+    public override string Description => "Fetches lyrics from multiple sources in a configurable priority order, reports sync status, keeps the result in memory for the current track and supports manual per-track source selection.";
 
     /// <inheritdoc />
     public override Guid Id => Guid.Parse(Constants.PluginGuid);

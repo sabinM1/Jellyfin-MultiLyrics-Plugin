@@ -402,7 +402,7 @@ public sealed class PluginLyricManager : ILyricManager
                 best.SourceName,
                 audio.Name);
 
-            return LyricFiles.BuildDto(best.Kind, best.BodyForSidecar());
+            return LyricFiles.BuildDto(best.Kind, best.BodyForHost());
         }
         finally
         {

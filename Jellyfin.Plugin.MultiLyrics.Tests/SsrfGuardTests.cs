@@ -130,9 +130,9 @@ public class LyricResultTests
     }
 
     [Fact]
-    public void InstrumentalHasNoSidecarBody()
+    public void InstrumentalHasNoHostBody()
     {
         var result = new LyricResult { IsInstrumental = true };
-        Assert.Null(result.BodyForSidecar());
+        Assert.Null(result.BodyForHost());
     }
 }

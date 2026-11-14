@@ -108,10 +108,10 @@ public sealed class LyricResult
     }
 
     /// <summary>
-    /// Gets the payload to persist: synced LRC if present, otherwise plain text.
+    /// Gets the payload handed to the host: synced LRC if present, otherwise plain text.
     /// </summary>
     /// <returns>The body text, or null when the result is empty/instrumental.</returns>
-    public string? BodyForSidecar()
+    public string? BodyForHost()
     {
         if (IsSynced)
         {
