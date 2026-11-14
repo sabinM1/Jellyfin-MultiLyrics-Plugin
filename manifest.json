@@ -1,0 +1,29 @@
+[
+  {
+    "guid": "7c1e4a9e-52b8-4c2f-9a3d-6e8f1b2c4d5e",
+    "name": "Multi-Lyrics",
+    "description": "Multi-Lyrics queries lyric sources in a user-configurable priority queue, records whether each result is synced, plain or instrumental, serves the lyrics for the track being played through GET /Audio/{id}/Lyrics, keeps a per-source retry cache, exposes an admin-only manual search/status API, and can optionally call a companion Demucs+WhisperX service to align plain lyrics into word-level timings. Lyrics are ephemeral: fetched on demand and held in memory only, never written to the library or metadata folder. Genius scraping is OFF by default and requires an explicit Terms-of-Service acknowledgement.",
+    "overview": "Fetch lyrics from multiple sources in a configurable priority order (LRCLIB, lyrics.ovh, Tekstowo, Genius)",
+    "owner": "Multi-Lyrics contributors",
+    "category": "Metadata",
+    "imageUrl": "",
+    "versions": [
+      {
+        "version": "1.0.0.0",
+        "changelog": "Multi-Lyrics v1.0.0.0: multi-source lyrics, synced/plain transparency, retry cache, optional alignment service.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/sabinM1/Jellyfin-MultiLyrics-Plugin/releases/download/v1.0.0.0/multi-lyrics_1.0.0.0_jf10.zip",
+        "checksum": "0383771fafba2b8aa428531f4a17b16d",
+        "timestamp": "2026-11-14T13:01:25Z"
+      },
+      {
+        "version": "1.0.0.0",
+        "changelog": "Multi-Lyrics v1.0.0.0: multi-source lyrics, synced/plain transparency, retry cache, optional alignment service.",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/sabinM1/Jellyfin-MultiLyrics-Plugin/releases/download/v1.0.0.0/multi-lyrics_1.0.0.0_jf12.zip",
+        "checksum": "f6ec74cf032f8e8e9226aeed03a137fd",
+        "timestamp": "2026-11-14T13:01:25Z"
+      }
+    ]
+  }
+]

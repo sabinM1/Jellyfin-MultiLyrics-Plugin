@@ -1,0 +1,164 @@
+name: CI
+
+# Builds and validates the plugin for both supported Jellyfin lines, runs the unit
+# tests and the alignment-service logic tests, and checks the repository metadata
+# (build.yaml / manifest.json / csproj / legal defaults).
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  PYTHONIOENCODING: 'utf-8'
+
+jobs:
+  plugin:
+    name: Build plugin (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Same sources, two artifacts: the csproj switches TFM and Jellyfin
+          # package versions on -p:JellyfinTarget.
+          - target: jf10
+            dotnet: '9.0.x'
+          - target: jf12
+            dotnet: '10.0.x'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET (${{ matrix.dotnet }})
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+
+      - name: Restore
+        run: dotnet restore Jellyfin.Plugin.MultiLyrics -p:JellyfinTarget=${{ matrix.target }}
+
+      - name: Build
+        run: dotnet build Jellyfin.Plugin.MultiLyrics -c Release --no-restore -p:JellyfinTarget=${{ matrix.target }}
+
+      - name: Publish
+        run: >
+          dotnet publish Jellyfin.Plugin.MultiLyrics -c Release --no-restore
+          -p:JellyfinTarget=${{ matrix.target }}
+          -o artifacts/publish-${{ matrix.target }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install validation dependencies
+        run: python -m pip install --quiet pyyaml
+
+      - name: Validate metadata and packaging inputs
+        run: >
+          python scripts/validate_project.py --allow-placeholder-manifest
+          --publish-dir artifacts/publish-${{ matrix.target }}
+
+      - name: Pack plugin zip
+        run: |
+          set -euo pipefail
+          VERSION=$(python -c "import yaml; print(yaml.safe_load(open('Jellyfin.Plugin.MultiLyrics/build.yaml'))['version'])")
+          python scripts/pack_plugin.py \
+            --publish-dir "artifacts/publish-${{ matrix.target }}" \
+            --output "artifacts/multi-lyrics_${VERSION}_${{ matrix.target }}.zip"
+
+      - name: Upload plugin zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: plugin-${{ matrix.target }}
+          path: artifacts/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  test:
+    name: Unit tests (net9.0)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore Jellyfin.Plugin.MultiLyrics.Tests
+
+      - name: Test
+        run: >
+          dotnet test Jellyfin.Plugin.MultiLyrics.Tests -c Release --no-restore
+          --logger "trx;LogFileName=results.trx"
+          --results-directory artifacts/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: artifacts/test-results
+          if-no-files-found: warn
+          retention-days: 14
+
+  alignment-service:
+    name: Alignment service tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: python -m pip install --quiet pytest
+
+      - name: Byte-compile the service
+        run: python -m py_compile alignment-service/app.py
+
+      - name: Run LRC logic tests
+        run: python -m pytest alignment-service/test_lrc.py -q
+
+      - name: Validate compose files
+        run: |
+          docker compose -f alignment-service/docker-compose.yml config -q
+          docker compose -f tests/integration/docker-compose.yml config -q
+
+  metadata:
+    name: Repository metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install validation dependencies
+        run: python -m pip install --quiet pyyaml
+
+      - name: Validate repository metadata
+        run: python scripts/validate_project.py --allow-placeholder-manifest

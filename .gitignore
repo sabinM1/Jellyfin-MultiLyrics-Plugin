@@ -1,0 +1,16 @@
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+*.binlog
+artifacts/
+music/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Integration test scratch output (built by tests/integration/install_plugin.sh)
+tests/integration/plugin/
+tests/integration/publish/

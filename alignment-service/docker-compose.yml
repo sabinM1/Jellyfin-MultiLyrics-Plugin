@@ -1,0 +1,36 @@
+# Standalone alignment service. Mount your music library READ-ONLY and a models cache.
+#
+#   docker compose up -d --build
+#   curl http://localhost:8787/health
+#
+# Point the plugin's "Alignment service URL" at http://<host>:8787 and enable
+# "Allow private alignment host" if the service runs on the same LAN/Docker network.
+services:
+  alignment:
+    build: .
+    container_name: multilyrics-alignment
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      MUSIC_ROOT: /music
+      WHISPER_MODEL: large-v3      # smaller/faster: base, small, medium
+      DEVICE: cpu                  # cuda when built with GPU torch
+      COMPUTE_TYPE: int8           # float16 for CUDA
+      DEMUCS_MODEL: htdemucs
+    volumes:
+      # Music is mounted READ-ONLY - the service never writes to the library.
+      - /path/to/music:/music:ro
+      # Cache downloaded Whisper/Demucs weights between restarts.
+      - alignment-models:/models
+    # Optional GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  alignment-models:

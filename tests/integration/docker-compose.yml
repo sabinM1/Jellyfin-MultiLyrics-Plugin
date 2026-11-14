@@ -1,0 +1,41 @@
+name: multilyrics-integration
+
+# Integration test: a real Jellyfin container + the alignment companion service + a
+# small public-domain seeded library. Run ./run_test.sh (same directory) after
+# ./seed_music.sh has produced ./music/.
+
+services:
+  jellyfin:
+    # Pinned to the 10.11 line; override with JELLYFIN_IMAGE to test another release.
+    image: ${JELLYFIN_IMAGE:-jellyfin/jellyfin:10.11}
+    container_name: it-jellyfin
+    restart: "no"
+    environment:
+      # Fresh instance; setup wizard is skipped via API in run_test.sh.
+      JELLYFIN_PublishedServerUrl: http://localhost:8096
+    ports:
+      - "8096:8096"
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - ./music:/media/music:ro
+      # Plugin payload prepared by ./install_plugin.sh (Jellyfin scans every
+      # sub-directory of config/plugins for a plugin assembly).
+      - ./plugin:/config/plugins/MultiLyrics:ro
+
+  alignment:
+    build:
+      context: ../../alignment-service
+    container_name: it-alignment
+    restart: "no"
+    environment:
+      MUSIC_ROOT: /music
+      WHISPER_MODEL: tiny          # small model keeps the integration run cheap
+      DEVICE: cpu
+      COMPUTE_TYPE: int8
+    volumes:
+      - ./music:/music:ro
+
+volumes:
+  jellyfin-config:
+  jellyfin-cache:

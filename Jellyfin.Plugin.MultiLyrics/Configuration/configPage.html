@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Multi-Lyrics</title>
+</head>
+<body>
+    <div data-role="page" class="page type-interior pluginConfigurationPage multiLyricsConfigPage"
+         data-require="javascript" data-controllername="multiLyricsConfigPage">
+        <style>
+            /* The table controls are drawn by the page itself: Jellyfin's emby-checkbox and
+               emby-select custom elements are only upgraded on some pages and views, so a
+               leftover native control showed up as a bare white square or a plain browser
+               dropdown next to the themed ones. */
+            .multiLyricsConfigPage input.mlToggle {
+                -webkit-appearance: none;
+                appearance: none;
+                box-sizing: border-box;
+                width: 22px;
+                height: 22px;
+                margin: 0;
+                padding: 0;
+                border: 2px solid #7c7c7c;
+                border-radius: 4px;
+                background-color: transparent;
+                cursor: pointer;
+                position: relative;
+                vertical-align: middle;
+                transition: background-color 120ms ease-in-out, border-color 120ms ease-in-out;
+            }
+
+            .multiLyricsConfigPage input.mlToggle:checked {
+                background-color: #00a4dc;
+                border-color: #00a4dc;
+            }
+
+            .multiLyricsConfigPage input.mlToggle:checked::after {
+                content: '';
+                position: absolute;
+                left: 6px;
+                top: 2px;
+                width: 5px;
+                height: 11px;
+                border: solid #fff;
+                border-width: 0 2px 2px 0;
+                transform: rotate(45deg);
+            }
+
+            .multiLyricsConfigPage input.mlToggle:disabled {
+                cursor: default;
+                opacity: .85;
+            }
+
+            .multiLyricsConfigPage select.mlSelect {
+                -webkit-appearance: none;
+                appearance: none;
+                box-sizing: border-box;
+                min-width: 5.5em;
+                padding: 6px 1.9em 6px 10px;
+                border: 1px solid #5a5a5a;
+                border-radius: 4px;
+                background-color: rgba(255, 255, 255, .06);
+                color: inherit;
+                font: inherit;
+                cursor: pointer;
+                background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='%23dcddde' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right .65em center;
+                background-size: .7em auto;
+            }
+
+            .multiLyricsConfigPage select.mlSelect:focus {
+                border-color: #00a4dc;
+                outline: none;
+            }
+        </style>
+        <div class="padded-left padded-right padded-bottom-page">
+            <div class="readOnlyContent" style="margin-bottom: 1em;">
+                <h1>Multi-Lyrics</h1>
+                <p>
+                    Queries lyric sources in the priority order set below, prefers synced
+                    (<strong>.lrc</strong>) results over plain (<strong>.txt</strong>) ones, and holds the
+                    lyrics of the current track in memory. Results are fetched on demand and are never
+                    written to a library folder or to Jellyfin's metadata folder.
+                </p>
+                <p class="fieldDescription">
+                    Log lines from this plugin start with <code>Multi-Lyrics</code> — see
+                    Dashboard → Logs. Jellyfin reports the loaded version at startup as
+                    <code>Loaded plugin: Multi-Lyrics &lt;version&gt;</code>.
+                </p>
+                <p class="fieldDescription" data-page-version="1.0.0.0">
+                    Settings page build <strong>1.0.0.0</strong>. This page is embedded in
+                    <code>Jellyfin.Plugin.MultiLyrics.dll</code>, so the number here is the version of
+                    the assembly Jellyfin loaded. If the dashboard lists a newer plugin version than
+                    the one shown here, reload the page with <kbd>Ctrl</kbd>+<kbd>F5</kbd>.
+                </p>
+            </div>
+
+            <!-- ============ Priority ============ -->
+            <h2>Source priority</h2>
+            <p class="fieldDescription" style="max-width: 720px;">
+                Lower numbers are asked first. A synced result ends the search; a plain result is kept
+                as a fallback while the remaining sources are still tried for a synced one. Unticked
+                sources are skipped entirely, except LRCLIB which is always enabled. Each priority
+                number must be used exactly once.
+            </p>
+            <table style="width: 100%; max-width: 720px; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; width: 84px; padding-bottom: 6px;">Enabled</th>
+                        <th style="text-align: left; padding-bottom: 6px;">Source</th>
+                        <th style="text-align: left; width: 120px; padding-bottom: 6px;">Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <input type="checkbox" class="mlToggle" id="mlEnabled_LrcLib" checked disabled />
+                        </td>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <label for="mlEnabled_LrcLib"><strong>LRCLIB</strong></label>
+                            <div class="fieldDescription">Synced and plain lyrics, no API key — always enabled</div>
+                        </td>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <select class="mlSelect" id="mlPriority_LrcLib">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <input type="checkbox" class="mlToggle" id="mlEnabled_LyricsOvh" />
+                        </td>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <label for="mlEnabled_LyricsOvh"><strong>lyrics.ovh</strong></label>
+                            <div class="fieldDescription">Plain lyrics, no API key</div>
+                        </td>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <select class="mlSelect" id="mlPriority_LyricsOvh">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <input type="checkbox" class="mlToggle" id="mlEnabled_Tekstowo" />
+                        </td>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <label for="mlEnabled_Tekstowo"><strong>Tekstowo</strong></label>
+                            <div class="fieldDescription">Plain lyrics, unofficial page scrape</div>
+                        </td>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <select class="mlSelect" id="mlPriority_Tekstowo">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <input type="checkbox" class="mlToggle" id="mlEnabled_Genius" />
+                        </td>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <label for="mlEnabled_Genius"><strong>Genius</strong></label>
+                            <div class="fieldDescription">Lyric text scraped from the song page (see the legal note)</div>
+                        </td>
+                        <td style="padding: 6px 0; vertical-align: top;">
+                            <select class="mlSelect" id="mlPriority_Genius">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="fieldDescription" style="max-width: 720px;">
+                LRCLIB cannot be disabled: it is the primary source of synced lyrics.
+            </p>
+            <div class="checkboxContainer checkboxLabel-withDescription" style="max-width: 720px;">
+                <label>
+                    <input type="checkbox" is="emby-checkbox" id="mlPreferSynced" />
+                    <span>Prefer synced lyrics over the priority order</span>
+                </label>
+                <div class="fieldDescription">
+                    On (default): a synced result wins even when a higher-priority source returned
+                    plain text. Off: the order is literal — the first source with any lyrics wins,
+                    which is how a plain source (Genius, Tekstowo) becomes the one you see.
+                </div>
+            </div>
+            <div id="mlError" class="fieldDescription" style="max-width: 720px; color: #c33; display: none;"></div>
+
+            <!-- ============ Genius ============ -->
+            <h2>Genius</h2>
+            <div id="mlGeniusWarn" class="fieldDescription" style="max-width: 720px; color: #c33; display: none;">
+                <strong>Genius legal note:</strong> lyric text is only obtainable by scraping the
+                song page, which may violate the Genius Terms of Service &mdash; personal use only.
+                Enabling Genius above puts it in the priority queue as a plain (scraped) source, at
+                the position you gave it. Cloudflare challenges are treated as a miss and are never
+                stored as lyrics. A client access token is <strong>optional</strong>: without one the
+                plugin searches the public genius.com page instead of the official API.
+            </div>
+            <div class="checkboxContainer checkboxLabel-withDescription" style="max-width: 720px;">
+                <label>
+                    <input type="checkbox" is="emby-checkbox" id="mlGeniusAck" />
+                    <span>I understand this may violate Genius Terms of Service; personal use only.</span>
+                </label>
+            </div>
+            <div class="inputContainer" style="max-width: 720px;">
+                <label class="inputLabel" for="mlGeniusToken">Genius client access token (optional, stored in plain XML)</label>
+                <input id="mlGeniusToken" name="mlGeniusToken" is="emby-input" type="password" autocomplete="off" />
+                <div class="fieldDescription">
+                    Optional: scraping the song page needs no token. With one, the search step uses
+                    the official API (<code>genius.com/api-clients</code>); without one the public
+                    genius.com search is queried. Stored in Jellyfin's plain-text plugin XML because
+                    plugins have no secret store; never logged by the plugin.
+                </div>
+            </div>
+
+            <div style="margin-top: 1em;">
+                <button is="emby-button" id="mlSave" class="raised button-submit" type="button"><span>Save</span></button>
+                <button is="emby-button" id="mlReset" class="raised" type="button"><span>Restore defaults</span></button>
+            </div>
+        </div>
+
+    <!-- The script must stay INSIDE the data-role="page" element: Jellyfin's view loader only
+         executes an inline script found within that element (it inserts the view through jQuery,
+         which runs scripts). Outside it, the script is silently never run. -->
+    <script type="text/javascript">
+        (function () {
+            'use strict';
+
+            var pluginId = '7c1e4a9e-52b8-4c2f-9a3d-6e8f1b2c4d5e';
+            var sourceNames = ['LrcLib', 'LyricsOvh', 'Tekstowo', 'Genius'];
+
+            // Mirrors the PluginConfiguration defaults. Only the fields shown on this page are
+            // written back; everything else (write policy, overwrite rule, duration tolerance,
+            // strict search, task limits, retry schedule, request delay, fetch-on-demand and the
+            // alignment service URL) keeps the value stored in the configuration, which is the
+            // recommended default on a fresh install.
+            var DEFAULTS = {
+                SourceOrder: 'LrcLib,LyricsOvh,Tekstowo,Genius',
+                EnableLrcLib: true,
+                EnableLyricsOvh: true,
+                EnableTekstowo: true,
+                EnableGenius: false,
+                PreferSyncedLyrics: true
+            };
+
+            var config = {};
+            var view = document.querySelector('.multiLyricsConfigPage');
+
+            function $(id) { return view.querySelector('#' + id); }
+
+            function showError(message) {
+                var box = $('mlError');
+                if (!message) {
+                    box.textContent = '';
+                    box.style.display = 'none';
+                    return;
+                }
+
+                box.textContent = message;
+                box.style.display = 'block';
+            }
+
+            function prioritySelect(name) { return $('mlPriority_' + name); }
+
+            function enabledToggle(name) { return $('mlEnabled_' + name); }
+
+            // Renders the stored order as 1..N priorities. Unknown or missing entries are appended
+            // in the built-in order so every source always has a slot.
+            function renderSources() {
+                var order = (config.SourceOrder || DEFAULTS.SourceOrder).split(',');
+                var rank = {};
+                var next = 1;
+
+                order.forEach(function (name) {
+                    name = (name || '').trim();
+                    if (sourceNames.indexOf(name) >= 0 && !rank[name]) {
+                        rank[name] = next++;
+                    }
+                });
+
+                sourceNames.forEach(function (name) {
+                    if (!rank[name]) { rank[name] = next++; }
+                });
+
+                sourceNames.forEach(function (name) {
+                    prioritySelect(name).value = String(rank[name]);
+
+                    if (name === 'LrcLib') {
+                        // Primary synced source: the toggle is locked on.
+                        var lrcLib = enabledToggle(name);
+                        lrcLib.checked = true;
+                        lrcLib.disabled = true;
+                        return;
+                    }
+
+                    enabledToggle(name).checked = !!config['Enable' + name];
+                });
+            }
+
+            // Reads the table back into an order + enable flags. Returns null when a priority is
+            // used twice, which would make the queue order ambiguous.
+            function collectSources() {
+                var byRank = {};
+                var order = [];
+
+                for (var i = 0; i < sourceNames.length; i++) {
+                    var name = sourceNames[i];
+                    var rank = parseInt(prioritySelect(name).value, 10);
+                    if (!(rank >= 1 && rank <= sourceNames.length)) {
+                        showError('Priority for ' + name + ' must be between 1 and ' + sourceNames.length + '.');
+                        return null;
+                    }
+
+                    if (byRank[rank]) {
+                        showError('Priority ' + rank + ' is used by both ' + byRank[rank] + ' and ' + name + '. Give every source its own priority.');
+                        return null;
+                    }
+
+                    byRank[rank] = name;
+                }
+
+                for (var j = 1; j <= sourceNames.length; j++) {
+                    order.push(byRank[j]);
+                }
+
+                // LRCLIB is hard-wired on: its toggle is locked, so the DOM value is ignored.
+                var enabled = { LrcLib: true };
+
+                sourceNames.forEach(function (name) {
+                    if (name === 'LrcLib') { return; }
+                    enabled[name] = enabledToggle(name).checked;
+                });
+
+                return { order: order, enabled: enabled };
+            }
+
+            function loadConfig() {
+                ApiClient.getPluginConfiguration(pluginId).then(function (cfg) {
+                    config = cfg;
+                    renderFromConfig();
+                }).catch(function (err) {
+                    showError('Could not read the plugin configuration: ' + describeError(err));
+                });
+            }
+
+            // Paints the widgets from whatever the server currently holds.
+            function renderFromConfig() {
+                renderSources();
+                // Absent on a configuration written by an older build: true is the behaviour it had.
+                $('mlPreferSynced').checked = config.PreferSyncedLyrics !== false;
+                $('mlGeniusAck').checked = !!config.GeniusToSAcknowledged;
+                // Never echo stored secrets back into the page: leave the field empty and
+                // keep the current value unless the admin types a new one.
+                $('mlGeniusToken').value = '';
+                $('mlGeniusToken').placeholder = config.GeniusToken ? 'stored - leave blank to keep' : 'optional - leave blank to scrape without a token';
+                updateGeniusWarning();
+            }
+
+            function describeError(err) {
+                if (!err) { return 'unknown error'; }
+                if (err.status) { return err.status + (err.statusText ? ' ' + err.statusText : ''); }
+                return err.message ? err.message : String(err);
+            }
+
+            // Restores the documented defaults, paints them and stores them immediately, so what
+            // the page shows is what the server holds. The token has no default and is left alone.
+            function applyDefaults() {
+                config.SourceOrder = DEFAULTS.SourceOrder;
+                config.EnableLrcLib = DEFAULTS.EnableLrcLib;
+                config.EnableLyricsOvh = DEFAULTS.EnableLyricsOvh;
+                config.EnableTekstowo = DEFAULTS.EnableTekstowo;
+                config.EnableGenius = DEFAULTS.EnableGenius;
+                config.PreferSyncedLyrics = DEFAULTS.PreferSyncedLyrics;
+
+                $('mlPreferSynced').checked = DEFAULTS.PreferSyncedLyrics;
+                renderSources();
+                updateGeniusWarning();
+                showError(null);
+                saveConfig();
+            }
+
+            // The legal note is shown whenever Genius is in the queue: enabling it always means
+            // scraping the song page.
+            function updateGeniusWarning() {
+                $('mlGeniusWarn').style.display = enabledToggle('Genius').checked ? 'block' : 'none';
+            }
+
+            function saveConfig() {
+                showError(null);
+
+                var picked = collectSources();
+                if (!picked) { return; }
+
+                config.SourceOrder = picked.order.join(',');
+                config.EnableLrcLib = picked.enabled.LrcLib;
+                config.EnableLyricsOvh = picked.enabled.LyricsOvh;
+                config.EnableTekstowo = picked.enabled.Tekstowo;
+                config.EnableGenius = picked.enabled.Genius;
+
+                config.PreferSyncedLyrics = $('mlPreferSynced').checked;
+
+                config.GeniusToSAcknowledged = $('mlGeniusAck').checked;
+
+                // Only overwrite the secret when a new value was typed; a blank field keeps the
+                // value already stored in the configuration.
+                var geniusToken = $('mlGeniusToken').value.trim();
+                if (geniusToken) { config.GeniusToken = geniusToken; }
+
+                // There is no mode selector any more: enabling Genius means scraping. The enum is
+                // still written so an older stored configuration is migrated on the next save, and
+                // it is always a number - a blank value is what made the host answer 500.
+                config.GeniusMode = config.EnableGenius ? 2 : 0;
+
+                if (config.EnableGenius && !config.GeniusToSAcknowledged) {
+                    showError('Genius is enabled but the Terms of Service acknowledgement is missing. Tick the acknowledgement first.');
+                    return;
+                }
+
+                ApiClient.updatePluginConfiguration(pluginId, config).then(function () {
+                    // Read the configuration back: a host that drops the update would otherwise look
+                    // like a successful save until the next restart.
+                    return ApiClient.getPluginConfiguration(pluginId);
+                }).then(function (saved) {
+                    config = saved;
+                    renderFromConfig();
+                    showError(null);
+                    if (typeof Dashboard !== 'undefined' && Dashboard.processServerConfigurationUpdateResult) {
+                        Dashboard.processServerConfigurationUpdateResult();
+                    }
+                }).catch(function (err) {
+                    showError('Save failed (' + describeError(err) + '). The values above are not stored on the server.');
+                });
+            }
+
+            // Jellyfin 10.x signals that the page became visible with a viewshow event on the page
+            // element. The 12.x dashboard loads plugin pages without that event, so the page also
+            // initialises on its own; without this the Save button had no handler and nothing was
+            // ever posted.
+            function init() {
+                if (typeof ApiClient === 'undefined') {
+                    showError('This page cannot reach the Jellyfin API client, so settings cannot be loaded or saved.');
+                    return;
+                }
+
+                // Property assignment, not addEventListener: initialising twice must not double-save.
+                $('mlSave').onclick = function () { saveConfig(); };
+                $('mlReset').onclick = function () { applyDefaults(); };
+                enabledToggle('Genius').onchange = function () { updateGeniusWarning(); };
+                loadConfig();
+            }
+
+            if (view) { view.addEventListener('viewshow', init); }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+    </div>
+</body>
+</html>

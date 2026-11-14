@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Build target selector. The same source produces two artifacts, one per Jellyfin line:
+         -p:JellyfinTarget=jf10 -> Jellyfin 10.11.x, .NET 9  (default)
+         -p:JellyfinTarget=jf12 -> Jellyfin 12.x,    .NET 10 -->
+    <JellyfinTarget Condition="'$(JellyfinTarget)' == ''">jf10</JellyfinTarget>
+    <RootNamespace>Jellyfin.Plugin.MultiLyrics</RootNamespace>
+    <!-- Also logged by the plugin itself; scripts/validate_project.py enforces that this
+         matches build.yaml so the two can never disagree in the log. -->
+    <Version>1.0.0.0</Version>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!-- Jellyfin 10.11.x / .NET 9. Pinned to the 10.11.0 floor so the artifact loads across the
+       whole 10.11.x line (a newer host satisfies the lower reference). -->
+  <PropertyGroup Condition="'$(JellyfinTarget)' == 'jf10'">
+    <TargetFramework>net9.0</TargetFramework>
+    <JellyfinVersion>10.11.0</JellyfinVersion>
+    <HttpExtensionsVersion>9.0.4</HttpExtensionsVersion>
+  </PropertyGroup>
+
+  <!-- Jellyfin 12.x / .NET 10. The Jellyfin 12.x packages ship lib/net10.0 only. -->
+  <PropertyGroup Condition="'$(JellyfinTarget)' == 'jf12'">
+    <TargetFramework>net10.0</TargetFramework>
+    <JellyfinVersion>12.0.0</JellyfinVersion>
+    <HttpExtensionsVersion>10.0.0</HttpExtensionsVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Jellyfin assemblies are provided by the server at runtime. Shipping them in the
+         plugin folder causes TypeLoadException, so the runtime assets are excluded. -->
+    <PackageReference Include="Jellyfin.Common" Version="$(JellyfinVersion)">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Controller" Version="$(JellyfinVersion)">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Model" Version="$(JellyfinVersion)">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <!-- Needed on net9.0 (Jellyfin 10.11); already part of the framework on net10.0 (Jellyfin 12).
+         Microsoft.Extensions.Http ships inside the Microsoft.AspNetCore.App shared framework that
+         the Jellyfin server already loads, so shipping our own copy would duplicate the assembly
+         (and risk a version clash). Compile-time reference only. -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="$(HttpExtensionsVersion)" Condition="'$(JellyfinTarget)' == 'jf10'">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.2" />
+  </ItemGroup>
+
+  <!-- Custom API controller (Api/MultiLyricsController.cs) compiles against the ASP.NET Core
+       shared framework, which the Jellyfin server provides at runtime. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Jellyfin.Plugin.MultiLyrics.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\configPage.html" />
+  </ItemGroup>
+
+</Project>

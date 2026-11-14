@@ -1,0 +1,184 @@
+name: Release
+
+# Tag push (v*) builds both artifacts, publishes them as a GitHub release and
+# regenerates manifest.json with real sourceUrl/checksum values, so the release
+# catalog URL always matches the shipped zips.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  build:
+    name: Build and pack (${{ matrix.target }})
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: jf10
+            dotnet: '9.0.x'
+          - target: jf12
+            dotnet: '10.0.x'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET (${{ matrix.dotnet }})
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+
+      - name: Restore
+        run: dotnet restore Jellyfin.Plugin.MultiLyrics -p:JellyfinTarget=${{ matrix.target }}
+
+      - name: Publish
+        run: >
+          dotnet publish Jellyfin.Plugin.MultiLyrics -c Release --no-restore
+          -p:JellyfinTarget=${{ matrix.target }}
+          -o artifacts/publish-${{ matrix.target }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install packaging dependencies
+        run: python -m pip install --quiet pyyaml
+
+      - name: Verify tag matches build.yaml version
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          META_VERSION=$(python -c "import yaml; print(yaml.safe_load(open('Jellyfin.Plugin.MultiLyrics/build.yaml'))['version'])")
+          if [ "$TAG_VERSION" != "$META_VERSION" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match build.yaml version $META_VERSION"
+            exit 1
+          fi
+
+      - name: Pack plugin zip
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          python scripts/pack_plugin.py \
+            --publish-dir "artifacts/publish-${{ matrix.target }}" \
+            --output "artifacts/multi-lyrics_${VERSION}_${{ matrix.target }}.zip"
+
+      - name: Upload plugin zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: plugin-${{ matrix.target }}
+          path: artifacts/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install packaging dependencies
+        run: python -m pip install --quiet pyyaml
+
+      - name: Download plugin zips
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Fetch the published catalog manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          # Merge onto what the default branch currently serves, not onto the checkout, so a
+          # re-run or a release built from an older commit cannot drop newer history.
+          if gh api "repos/${{ github.repository }}/contents/manifest.json" --jq .content 2>/dev/null \
+              | tr -d '\n' | base64 -d > artifacts/manifest-history.json; then
+            echo "::notice::merging onto the manifest currently published on the default branch"
+          else
+            echo '[]' > artifacts/manifest-history.json
+            echo "::warning::no published manifest found; starting a new history"
+          fi
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            # Re-run of a failed workflow: refresh title/notes and re-upload assets.
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "Multi-Lyrics $GITHUB_REF_NAME" \
+              --notes-file RELEASE_NOTES.md
+            gh release upload "$GITHUB_REF_NAME" artifacts/*.zip --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" artifacts/*.zip \
+              --title "Multi-Lyrics $GITHUB_REF_NAME" \
+              --notes-file RELEASE_NOTES.md \
+              --verify-tag
+          fi
+
+      - name: Generate catalog manifest
+        run: |
+          set -euo pipefail
+          # Filenames are built from the tag version: a glob carrying the trailing
+          # '=10.11.0.0' ABI suffix never matches a real file, so bash would pass the
+          # literal pattern through to the script.
+          VERSION="${GITHUB_REF_NAME#v}"
+          python scripts/gen_manifest.py \
+            --version "$VERSION" \
+            --base-url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}" \
+            --changelog "Multi-Lyrics ${{ github.ref_name }}: multi-source lyrics, synced/plain transparency, retry cache, optional alignment service." \
+            --merge-existing artifacts/manifest-history.json \
+            --output manifest.json \
+            "artifacts/multi-lyrics_${VERSION}_jf10.zip=10.11.0.0" \
+            "artifacts/multi-lyrics_${VERSION}_jf12.zip=12.0.0.0"
+
+      - name: Validate the generated manifest
+        run: python scripts/validate_project.py
+
+      - name: Attach the manifest to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" manifest.json --clobber
+
+      - name: Publish the manifest to the default branch
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.event.repository.default_branch || 'master' }}"
+          SHA=$(gh api "repos/$REPO/contents/manifest.json" --jq .sha 2>/dev/null || true)
+          # The contents API takes the file base64-encoded.
+          ENCODED=$(base64 -w 0 manifest.json)
+          ARGS=(-X PUT "repos/$REPO/contents/manifest.json"
+                -f message="Update catalog manifest for $GITHUB_REF_NAME"
+                -f branch="$BRANCH"
+                -f content="$ENCODED")
+          if [ -n "$SHA" ]; then ARGS+=(-f sha="$SHA"); fi
+          gh api "${ARGS[@]}"
+          echo "::notice::catalog manifest updated on $BRANCH (history kept)"
